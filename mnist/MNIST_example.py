@@ -50,15 +50,22 @@ mnistmTrainLoader = torch.utils.data.DataLoader(mnistmTrainSet, batch_size=BATCH
 loss_fn = nn.CrossEntropyLoss()
 optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
+#put on gpu if available
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+net.to(device)
+
 for epoch in range(10):
     running_loss = 0.0
     for i, sample_batched in enumerate(mnistmTrainLoader, 0):
 
         input_batch = f.pad(sample_batched['image'].float(), (2, 2, 2, 2))
+        input_batch = input_batch.to(device)
+
         optimizer.zero_grad()
 
         output = net(input_batch)
-        loss = loss_fn(output, sample_batched['labels'])
+        loss = loss_fn(output, sample_batched['labels'].to(device))
         loss.backward()
         optimizer.step()
 
