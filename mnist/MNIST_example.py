@@ -3,12 +3,35 @@ import torch.nn as nn
 import torch.nn.functional as f
 import torch.optim as optim
 import mnist_dataset as ds
-import torchvision
-import matplotlib.pyplot as plt
-import numpy as np
-import time
+# import torchvision
+# import matplotlib.pyplot as plt
+# import numpy as np
+# import time
+from tensorboard_logger import configure, log_value, log_images
 
-BATCH = 32
+
+def save_model(epoch, model,
+               optimizer, path='./ckpt'):
+    torch.save({
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict()
+            }, path)
+
+
+def load_model(model,
+               optimizer, path='./ckpt'):
+    checkpoint = torch.load(path)
+    model.load_state_dict(checkpoint['model_state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    epoch = checkpoint['epoch']
+    return model, optimizer, epoch
+
+BATCH = 4
+
+# tensorboard
+configure("runs/run-1234")
+
 
 class Net(nn.Module):
 
@@ -55,10 +78,14 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 net.to(device)
 
-for epoch in range(10):
-    running_loss = 0.0
-    for i, sample_batched in enumerate(mnistmTrainLoader, 0):
+count = 0
 
+for epoch in range(100):
+    
+    #load prev model
+    net, optimizer, epoch = load_model(model=net, optimizer=optimizer)
+
+    for i, sample_batched in enumerate(mnistmTrainLoader, 0):
         input_batch = f.pad(sample_batched['image'].float(), (2, 2, 2, 2))
         input_batch = input_batch.to(device)
 
@@ -70,10 +97,17 @@ for epoch in range(10):
         optimizer.step()
 
         # print statistics
-        running_loss += loss.item()
-        if i % 10 == 0:
+        if i % 50 == 0:
+            count = count + 1
             print('[%d, %5d] loss: %.3f' %
-                  (epoch + 1, i + 1, running_loss / 10))
-            running_loss = 0.0
+                  (epoch + 1, i + 1, loss.item()))
+            log_value('loss', loss.item(), count)
+            _, ind = output.max(1)
+            name = 'pred_' + str(ind[0])
+            sample_image = sample_batched['image'][0]
+            log_images(name, sample_image, count)
+    
+    #save model
+    save_model(epoch=epoch, model=net, optimizer=optimizer)
     
 
