@@ -87,7 +87,7 @@ for epoch in range(2000):
         input_batch = input_batch.to(device)
 
         # Create the labels which are later used as input for the BCE loss
-        # ones_labels = torch.ones(input_batch.shape[0], 1, 1, 1).to(device)
+        ones_labels = torch.ones(input_batch.shape[0], 1, 1, 1).to(device)
         real_labels = 0.9 * torch.ones(input_batch.shape[0], 1, 1, 1).to(device)
         fake_labels = 0.1 * torch.ones(input_batch.shape[0], 1, 1, 1).to(device)
 
@@ -117,7 +117,7 @@ for epoch in range(2000):
         gen_imgs = gen(noise)
         gen_desc = desc(gen_imgs)
 
-        gen_loss = criterion(gen_desc, real_labels)
+        gen_loss = criterion(gen_desc, ones_labels)
 
         gen_optimizer.zero_grad()
         desc_optimizer.zero_grad()
@@ -133,6 +133,8 @@ for epoch in range(2000):
             log_value("Desc Loss", desc_loss.item(), count)
             log_value("D(x)", real_desc.mean().item(), count)
             log_value("D(G(z))", gen_desc.mean().item(), count)
+            log_value("Grad Gen", gen_loss.grad.item(), count)
+            log_value("Grad Desc", desc_loss.grad.item(), count)
             log_images("generated", gen_imgs[0].detach(), count)
         
 
