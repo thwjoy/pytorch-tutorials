@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as f
 import torch.optim as optim
 import mnist_dataset as ds
+from tensorboard_logger import configure, log_value, log_images
 
 BATCH = 12
 
@@ -12,8 +13,7 @@ class generator(nn.Module):
         super(generator, self).__init__()
         self.g_fc1 = nn.Linear(100, 256)
         self.g_norm = torch.nn.BatchNorm2d(1)
-        self.g_fc2 = nn.Linear(256, 512)
-        self.g_fc3 = nn.Linear(512, 28 * 28)
+        self.g_fc2 = nn.Linear(256, 28 * 28)
 
     def forward(self, input):
         # input vector of length 100
@@ -23,8 +23,7 @@ class generator(nn.Module):
         self.gen_imgs = f.leaky_relu(self.g_fc2(self.gen_imgs))
         self.gen_imgs = self.g_norm(self.gen_imgs)
 
-        self.gen_imgs = torch.sigmoid(self.g_fc3(self.gen_imgs))
-        # self.gen_imgs = self.g_norm(self.gen_imgs)
+        self.gen_imgs = torch.tanh(self.gen_imgs)
 
         self.gen_imgs = self.gen_imgs.view(-1, 1, 28, 28)
 
@@ -50,6 +49,13 @@ class descrimanator(nn.Module):
 
         return self.desc
 
+
+def normalize(tensor):
+    return tensor.div_(torch.norm(tensor,2))
+
+# tensorboard
+configure("runs/run-1234")
+
 gen = generator()
 desc = descrimanator()
 
@@ -69,18 +75,21 @@ loss = torch
 gen.to(device)
 desc.to(device)
 
-gen_optimizer = optim.SGD(gen.parameters(), lr=0.001, momentum=0.9)
-desc_optimizer = optim.SGD(desc.parameters(), lr=0.001, momentum=0.9)
+gen_optimizer = optim.Adam(gen.parameters())
+desc_optimizer = optim.SGD(desc.parameters(), lr=0.0001, momentum=0.9)
 criterion = nn.BCELoss()
 
-for epoch in range(100):
+count = 0
+for epoch in range(2000):
     for i, sample_batched in enumerate(mnistmTrainLoader, 0):
         input_batch = sample_batched['image'].float()
+        input_batch = 2 * (input_batch - 0.5)
         input_batch = input_batch.to(device)
 
         # Create the labels which are later used as input for the BCE loss
-        real_labels = torch.ones(input_batch.shape[0], 1, 1, 1).to(device)
-        fake_labels = torch.zeros(input_batch.shape[0], 1, 1, 1).to(device)
+        # ones_labels = torch.ones(input_batch.shape[0], 1, 1, 1).to(device)
+        real_labels = 0.9 * torch.ones(input_batch.shape[0], 1, 1, 1).to(device)
+        fake_labels = 0.1 * torch.ones(input_batch.shape[0], 1, 1, 1).to(device)
 
         # ================================================================== #
         #                      Train the discriminator                       #
@@ -89,7 +98,7 @@ for epoch in range(100):
         real_desc = desc(input_batch)
         desc_loss_real = criterion(real_desc, real_labels)
 
-        noise = torch.empty(input_batch.shape[0], 1, 1, 100).uniform_().to(device)
+        noise = torch.randn(input_batch.shape[0], 1, 1, 100).to(device)
         gen_imgs = gen(noise)
         gen_desc = desc(gen_imgs)
         desc_loss_fake = criterion(gen_desc, fake_labels)
@@ -116,9 +125,15 @@ for epoch in range(100):
         gen_optimizer.step()    
 
         if (i+1) % 200 == 0:
+            count = count + 1
             print('Epoch [{}], Step [{}], desc_loss: {:.4f}, gen_loss: {:.4f}, D(x): {:.2f}, D(G(z)): {:.2f}' 
                   .format(epoch, i+1, desc_loss.item(), gen_loss.item(), 
                     real_desc.mean().item(), gen_desc.mean().item()))
+            log_value("Gen Loss", gen_loss.item(), count)
+            log_value("Desc Loss", desc_loss.item(), count)
+            log_value("D(x)", real_desc.mean().item(), count)
+            log_value("D(G(z))", gen_desc.mean().item(), count)
+            log_images("generated", gen_imgs[0].detach(), count)
         
 
         # train generator
