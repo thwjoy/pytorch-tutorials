@@ -3,10 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as f
 import torch.optim as optim
 import mnist_dataset as ds
-# import torchvision
-# import matplotlib.pyplot as plt
-# import numpy as np
-# import time
+import os
+
 from tensorboard_logger import configure, log_value, log_images
 
 
@@ -19,13 +17,14 @@ def save_model(epoch, model,
             }, path)
 
 
-def load_model(model,
+def load_model(model, epoch,
                optimizer, path='./ckpt'):
-    checkpoint = torch.load(path)
-    model.load_state_dict(checkpoint['model_state_dict'])
-    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-    epoch = checkpoint['epoch']
-    return model, optimizer, epoch
+    if os.path.exists(path):
+        checkpoint = torch.load(path)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        epoch[0] = checkpoint['epoch']
+    return
 
 BATCH = 4
 
@@ -80,10 +79,13 @@ net.to(device)
 
 count = 0
 
-for epoch in range(100):
-    
-    #load prev model
-    net, optimizer, epoch = load_model(model=net, optimizer=optimizer)
+epoch = [0]
+
+#load prev model
+load_model(model=net, optimizer=optimizer, epoch=epoch)
+epoch = epoch[0]
+
+while epoch < 100:
 
     for i, sample_batched in enumerate(mnistmTrainLoader, 0):
         input_batch = f.pad(sample_batched['image'].float(), (2, 2, 2, 2))
@@ -109,5 +111,6 @@ for epoch in range(100):
     
     #save model
     save_model(epoch=epoch, model=net, optimizer=optimizer)
+    epoch = epoch + 1
     
 
