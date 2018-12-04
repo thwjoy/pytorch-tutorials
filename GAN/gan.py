@@ -12,20 +12,38 @@ class generator(nn.Module):
     def __init__(self):
         super(generator, self).__init__()
         self.g_fc1 = nn.Linear(100, 256)
-        self.g_norm = torch.nn.BatchNorm2d(1)
+        self.g_norm_1 = torch.nn.BatchNorm2d(1)
+        self.g_norm_64 = torch.nn.BatchNorm2d(64)
         self.g_fc2 = nn.Linear(256, 28 * 28)
+        self.dropout = nn.Dropout2d(p=0.2)
+        self.g_c1 = nn.Conv2d(1, 64, 5, padding=2)
+        self.g_c2 = nn.Conv2d(64, 64, 5, padding=2)
+        self.g_c3 = nn.Conv2d(64, 64, 5, padding=2)
+        self.g_c4 = nn.Conv2d(64, 1, 5, padding=2)
 
     def forward(self, input):
         # input vector of length 100
         self.gen_imgs = f.leaky_relu(self.g_fc1(input))
-        self.gen_imgs = self.g_norm(self.gen_imgs)
+        self.gen_imgs = self.g_norm_1(self.gen_imgs)
 
         self.gen_imgs = f.leaky_relu(self.g_fc2(self.gen_imgs))
-        self.gen_imgs = self.g_norm(self.gen_imgs)
-
-        self.gen_imgs = torch.tanh(self.gen_imgs)
+        self.gen_imgs = self.g_norm_1(self.gen_imgs)
 
         self.gen_imgs = self.gen_imgs.view(-1, 1, 28, 28)
+
+        self.gen_imgs = self.dropout(f.leaky_relu(self.g_c1(self.gen_imgs)))
+        self.gen_imgs = self.g_norm_64(self.gen_imgs)
+
+        self.gen_imgs = self.dropout(f.leaky_relu(self.g_c2(self.gen_imgs)))
+        self.gen_imgs = self.g_norm_64(self.gen_imgs)
+
+        self.gen_imgs = self.dropout(f.leaky_relu(self.g_c3(self.gen_imgs)))
+        self.gen_imgs = self.g_norm_64(self.gen_imgs)
+
+        self.gen_imgs = self.dropout(f.leaky_relu(self.g_c4(self.gen_imgs)))
+        self.gen_imgs = self.g_norm_1(self.gen_imgs)
+
+        self.gen_imgs = torch.tanh(self.gen_imgs)
 
         return self.gen_imgs
 
@@ -34,11 +52,23 @@ class descrimanator(nn.Module):
 
     def __init__(self):
         super(descrimanator, self).__init__()
+        self.d_c1 = nn.Conv2d(1, 64, 5, padding=2)
+        self.d_c2 = nn.Conv2d(64, 64, 5, padding=2)
+        self.d_c3 = nn.Conv2d(64, 1, 5, padding=2)
+        self.d_norm_1 = torch.nn.BatchNorm2d(1)
+        self.d_norm_64 = torch.nn.BatchNorm2d(64)
+        self.dropout = nn.Dropout2d(p=0.2)
         self.d_fc1 = nn.Linear(28 * 28, 512)
         self.d_fc2 = nn.Linear(512, 256)
         self.d_fc3 = nn.Linear(256, 1)
 
     def forward(self, input):
+        self.desc = self.dropout(f.leaky_relu(self.d_c1(input)))
+
+        self.desc = self.dropout(f.leaky_relu(self.d_c2(self.desc)))
+
+        self.desc = self.dropout(f.leaky_relu(self.d_c3(self.desc)))
+
         self.desc = input.view(-1, 1, 1, 28 * 28)
 
         self.desc = f.leaky_relu(self.d_fc1(self.desc))
@@ -54,7 +84,7 @@ def normalize(tensor):
     return tensor.div_(torch.norm(tensor,2))
 
 # tensorboard
-configure("runs/run-1234")
+configure("runs/run-DCGAN_dropout")
 
 gen = generator()
 desc = descrimanator()
@@ -87,9 +117,9 @@ for epoch in range(2000):
         input_batch = input_batch.to(device)
 
         # Create the labels which are later used as input for the BCE loss
-        ones_labels = torch.ones(input_batch.shape[0], 1, 1, 1).to(device)
-        real_labels = 0.9 * torch.ones(input_batch.shape[0], 1, 1, 1).to(device)
-        fake_labels = 0.1 * torch.ones(input_batch.shape[0], 1, 1, 1).to(device)
+        # ones_labels = torch.ones(input_batch.shape[0], 1, 1, 1).to(device)
+        real_labels = 0.99 * torch.ones(input_batch.shape[0], 1, 1, 1).to(device)
+        fake_labels = 0.01 * torch.ones(input_batch.shape[0], 1, 1, 1).to(device)
 
         # ================================================================== #
         #                      Train the discriminator                       #
@@ -117,7 +147,7 @@ for epoch in range(2000):
         gen_imgs = gen(noise)
         gen_desc = desc(gen_imgs)
 
-        gen_loss = criterion(gen_desc, ones_labels)
+        gen_loss = criterion(gen_desc, real_labels)
 
         gen_optimizer.zero_grad()
         desc_optimizer.zero_grad()
@@ -133,9 +163,10 @@ for epoch in range(2000):
             log_value("Desc Loss", desc_loss.item(), count)
             log_value("D(x)", real_desc.mean().item(), count)
             log_value("D(G(z))", gen_desc.mean().item(), count)
-            log_value("Grad Gen", gen_loss.grad.item(), count)
-            log_value("Grad Desc", desc_loss.grad.item(), count)
-            log_images("generated", gen_imgs[0].detach(), count)
+            # log_value("Grad Gen", gen_loss.grad.data, count)
+            # log_value("Grad Desc", real_desc.grad, count)
+            for i in range(BATCH):
+                log_images("generated", gen_imgs[i].detach(), count)
         
 
         # train generator
