@@ -4,8 +4,27 @@ import torch.nn.functional as f
 import torch.optim as optim
 import mnist_dataset as ds
 from tensorboard_logger import configure, log_value, log_images
+import os
 
-BATCH = 12
+BATCH = 24
+
+def save_model(epoch, model,
+               optimizer, path='./ckpt'):
+    torch.save({
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict()
+            }, path)
+
+
+def load_model(model, epoch,
+               optimizer, path='./ckpt'):
+    if os.path.exists(path):
+        checkpoint = torch.load(path)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        epoch[0] = checkpoint['epoch'] + 1
+    return
 
 class generator(nn.Module):
 
@@ -84,14 +103,15 @@ def normalize(tensor):
     return tensor.div_(torch.norm(tensor,2))
 
 # tensorboard
-configure("runs/run-DCGAN_dropout")
+run_name = "runs/run-DCGAN_batch_" + str(BATCH)
+configure(run_name)
 
 gen = generator()
 desc = descrimanator()
 
 mnistmTrainSet = ds.mnistmTrainingDataset(
-                    text_file='/home/tom/Downloads/mnist_png/testing/list.txt',
-                    root_dir='/home/tom/Downloads/mnist_png/testing')
+                    text_file='/home/tom/Downloads/mnist_png/training/list.txt',
+                    root_dir='/home/tom/Downloads/mnist_png/training')
 
 mnistmTrainLoader = torch.utils.data.DataLoader(mnistmTrainSet, batch_size=BATCH,
                                                 shuffle=True, num_workers=2)
@@ -110,7 +130,15 @@ desc_optimizer = optim.SGD(desc.parameters(), lr=0.0001, momentum=0.9)
 criterion = nn.BCELoss()
 
 count = 0
-for epoch in range(2000):
+epoch = [0]
+
+#load prev model
+load_model(model=gen, optimizer=gen_optimizer, epoch=epoch, path=run_name + '/ckpt_gan')
+load_model(model=desc, optimizer=desc_optimizer, epoch=epoch, path=run_name + '/ckpt_desc')
+epoch = epoch[0]
+
+while epoch < 5000:
+
     for i, sample_batched in enumerate(mnistmTrainLoader, 0):
         input_batch = sample_batched['image'].float()
         input_batch = 2 * (input_batch - 0.5)
@@ -165,11 +193,15 @@ for epoch in range(2000):
             log_value("D(G(z))", gen_desc.mean().item(), count)
             # log_value("Grad Gen", gen_loss.grad.data, count)
             # log_value("Grad Desc", real_desc.grad, count)
-            for i in range(BATCH):
+            for i in range(input_batch.shape[0]):
                 log_images("generated", gen_imgs[i].detach(), count)
         
 
         # train generator
+        #save model
+    save_model(model=gen, optimizer=gen_optimizer, epoch=epoch, path=run_name + '/ckpt_gan')
+    save_model(model=desc, optimizer=desc_optimizer, epoch=epoch, path=run_name + '/ckpt_desc')
+    epoch = epoch + 1
         
 
         

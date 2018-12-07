@@ -1,5 +1,5 @@
 *.pyc
 mnist/*.pyc
 *.cpython*
-*/ckpt
+*/ckpt*
 */runs
