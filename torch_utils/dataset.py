@@ -8,21 +8,19 @@ import numpy as np
 
 class mnistmTrainingDataset(torch.utils.data.Dataset):
 
-    def __init__(self, text_file, root_dir):
+    def __init__(self, text_file):
         """
         Args:
             text_file(string): path to text file
-            root_dir(string): directory with all train images
         """
         self.name_frame = pd.read_csv(text_file, sep=",", usecols=range(1))
         self.label_frame = pd.read_csv(text_file, sep=",", usecols=range(1, 2))
-        self.root_dir = root_dir
 
     def __len__(self):
         return len(self.name_frame)
 
     def __getitem__(self, idx):
-        img_name = os.path.join(self.root_dir, self.name_frame.iloc[idx, 0])
+        img_name = self.name_frame.iloc[idx, 0]
         image = io.imread(img_name).astype(float)
         image *= 1.0/image.max()
         image = np.expand_dims(image, axis=0)

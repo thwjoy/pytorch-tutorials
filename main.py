@@ -1,6 +1,6 @@
 import os
 import argparse
-
+import networks
 
 
 def main():
@@ -17,6 +17,8 @@ def main():
     parser.add_argument('--network', required=True,
                         help='The network which want to run')
     parser.parse_args()
+
+    
 
 
 
