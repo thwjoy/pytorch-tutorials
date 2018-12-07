@@ -1,14 +1,13 @@
-import sys
-sys.path.append('../torch_utils')
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as f
 import torch.optim as optim
-import dataset as ds
-import torch_io as tio
 from tensorboard_logger import configure, log_value, log_images
 import os
+import sys
+sys.path.append('../torch_utils')
+import dataset as ds
+import torch_io as tio
 
 BATCH = 24
 

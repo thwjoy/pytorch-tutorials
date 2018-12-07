@@ -1,6 +1,9 @@
 import os
 import argparse
-import networks
+import sys
+sys.path.append('./networks')
+import mnist_classifier
+import mnist_gan
 
 
 def main():
@@ -15,12 +18,13 @@ def main():
     parser.add_argument('--dataset_list', required=True,
                         help='Path to csv containing the dataset and labels')
     parser.add_argument('--network', required=True,
-                        help='The network which want to run')
-    parser.parse_args()
+                        help='The network which want to run: gan, classifier')
+    args = parser.parse_args()
 
-    
-
-
+    if args.network == 'gan':
+        networks.mnist_gan.main(args)
+    elif args.network == 'classifier':
+        networks.mnist_classifier.main(args)
 
 
 if __name__ == '__main__':
