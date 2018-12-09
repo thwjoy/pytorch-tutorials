@@ -3,3 +3,5 @@ mnist/*.pyc
 *.cpython*
 */ckpt*
 */runs
+ckpt
+runs

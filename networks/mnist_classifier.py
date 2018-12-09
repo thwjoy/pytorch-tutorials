@@ -5,15 +5,8 @@ import torch.optim as optim
 from tensorboard_logger import configure, log_value, log_images
 import os
 import sys
-sys.path.append('../torch_utils')
-import dataset as ds
-import torch_io as tio
-
-BATCH = 4
-
-# tensorboard
-configure("runs/run-1234")
-
+from torch_utils import dataset as ds
+from torch_utils import torch_io as tio
 
 class Net(nn.Module):
 
@@ -44,7 +37,13 @@ class Net(nn.Module):
         return num_features
 
 
-def main(args):
+def train(args):
+
+    # tensorboard
+    run_name = "./runs/run-classifier_batch_" + str(args.batch_size) \
+                    + "_epochs_" + str(args.epochs) + "_" + args.log_message
+    configure(run_name)
+
     net = Net()
 
     mnistmTrainSet = ds.mnistmTrainingDataset(
@@ -71,7 +70,7 @@ def main(args):
     tio.load_model(model=net, optimizer=optimizer, epoch=epoch)
     epoch = epoch[0]
 
-    while epoch < 100:
+    while epoch < args.epochs:
 
         for i, sample_batched in enumerate(mnistmTrainLoader, 0):
             input_batch = f.pad(sample_batched['image'].float(), (2, 2, 2, 2))
@@ -80,7 +79,7 @@ def main(args):
             optimizer.zero_grad()
 
             output = net(input_batch)
-            loss = loss_fn(output, sample_batched['labels`'].to(device))
+            loss = loss_fn(output, sample_batched['labels'].to(device))
             loss.backward()
             optimizer.step()
 

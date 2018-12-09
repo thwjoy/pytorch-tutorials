@@ -5,11 +5,9 @@ import torch.optim as optim
 from tensorboard_logger import configure, log_value, log_images
 import os
 import sys
-sys.path.append('../torch_utils')
-import dataset as ds
-import torch_io as tio
-
-BATCH = 24
+from torch_utils import dataset as ds
+from torch_utils import torch_io as tio
+import time
 
 
 class generator(nn.Module):
@@ -89,20 +87,22 @@ def normalize(tensor):
     return tensor.div_(torch.norm(tensor,2))
 
 
-def main():
+def train(args):
     # tensorboard
-    run_name = "runs/run-DCGAN_batch_" + str(BATCH)
+    run_name = "./runs/run-GAN_batch_" + str(args.batch_size) \
+                    + "_epochs_" + str(args.epochs) + "_" + args.log_message
+
     configure(run_name)
 
     gen = generator()
     desc = descrimanator()
 
     mnistmTrainSet = ds.mnistmTrainingDataset(
-            text_file='/home/tom/Downloads/mnist_png/training/list.txt')
+            text_file=args.dataset_list)
 
     mnistmTrainLoader = torch.utils.data.DataLoader(
                                         mnistmTrainSet,
-                                        batch_size=BATCH,
+                                        batch_size=args.batch_size,
                                         shuffle=True, num_workers=2)
 
     # put on gpu if available
@@ -125,7 +125,7 @@ def main():
     tio.load_model(model=desc, optimizer=desc_optimizer, epoch=epoch, path=run_name + '/ckpt_desc')
     epoch = epoch[0]
 
-    while epoch < 5000:
+    while epoch < args.epochs:
 
         for i, sample_batched in enumerate(mnistmTrainLoader, 0):
             input_batch = sample_batched['image'].float()
@@ -179,8 +179,6 @@ def main():
                 log_value("Desc Loss", desc_loss.item(), count)
                 log_value("D(x)", real_desc.mean().item(), count)
                 log_value("D(G(z))", gen_desc.mean().item(), count)
-                # log_value("Grad Gen", gen_loss.grad.data, count)
-                # log_value("Grad Desc", real_desc.grad, count)
                 for i in range(input_batch.shape[0]):
                     log_images("generated", gen_imgs[i].detach(), count)
             
@@ -190,8 +188,5 @@ def main():
         tio.save_model(model=gen, optimizer=gen_optimizer, epoch=epoch, path=run_name + '/ckpt_gan')
         tio.save_model(model=desc, optimizer=desc_optimizer, epoch=epoch, path=run_name + '/ckpt_desc')
         epoch = epoch + 1
-        
-if __name__ == '__main__':
-    main()
 
-        
+
