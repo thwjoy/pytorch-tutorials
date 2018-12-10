@@ -4,12 +4,13 @@ import sys
 import networks
 sys.path.append('./torch_utils')
 
+
 def main():
     parser = argparse.ArgumentParser(description="Arguments for running \
                             example networks in pytorch")
     parser.add_argument('--batch_size', type=int, default=32,
                         help='input batch size for training (default: 128)')
-    parser.add_argument('--epochs', type=int, default=50,
+    parser.add_argument('--epochs', type=int, default=500,
                         help='number of epochs to train over (default: 50)')
     parser.add_argument('--phase', required=True, default='train',
                         help='Set the phase of the network (default: train)')
@@ -23,6 +24,8 @@ def main():
 
     if args.network == 'gan':
         networks.mnist_gan.train(args)
+    elif args.network == 'vae':
+        networks.mnist_vae.train(args)
     elif args.network == 'classifier':
         networks.mnist_classifier.train(args)
 
