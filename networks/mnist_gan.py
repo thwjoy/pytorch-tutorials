@@ -8,6 +8,7 @@ import sys
 from torch_utils import dataset as ds
 from torch_utils import torch_io as tio
 import time
+import math
 
 
 class generator(nn.Module):
@@ -117,7 +118,6 @@ def train(args):
     desc_optimizer = optim.SGD(desc.parameters(), lr=0.0001, momentum=0.9)
     criterion = nn.BCELoss()
 
-    count = 0
     epoch = [0]
 
     #load prev model
@@ -171,7 +171,7 @@ def train(args):
             gen_optimizer.step()    
 
             if (i+1) % 200 == 0:
-                count = count + 1
+                count = int(epoch * math.floor(len(mnistmTrainSet) / (args.batch_size * 200)) + (i / 200))
                 print('Epoch [{}], Step [{}], desc_loss: {:.4f}, gen_loss: {:.4f}, D(x): {:.2f}, D(G(z)): {:.2f}' 
                     .format(epoch, i+1, desc_loss.item(), gen_loss.item(), 
                         real_desc.mean().item(), gen_desc.mean().item()))

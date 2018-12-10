@@ -7,11 +7,16 @@ import os
 import sys
 from torch_utils import dataset as ds
 from torch_utils import torch_io as tio
+from torchvision.utils import save_image
 
 # Hyper-parameters
 image_size = 784
 h_dim = 400
 z_dim = 20
+
+sample_dir = 'samples'
+if not os.path.exists(sample_dir):
+    os.makedirs(sample_dir)
 
 
 class VAE(nn.Module):
@@ -61,14 +66,13 @@ def train(args):
                                             batch_size=args.batch_size,
                                             shuffle=True, num_workers=2)
 
-    criterion = nn.BCELoss()
+    criterion = nn.BCELoss(size_average=False)
     optimizer = optim.Adam(net.parameters())
 
-    count = 0
     epoch = [0]
 
     # load prev model
-    tio.load_model(model=net, optimizer=optimizer, epoch=epoch)
+    tio.load_model(model=net, optimizer=optimizer, epoch=epoch, path=run_name + '/ckpt')
     epoch = epoch[0]
 
     while epoch < args.epochs:
@@ -92,14 +96,18 @@ def train(args):
 
             # print statistics
             if i % 200 == 0:
-                count = count + 1
+                count = int(epoch * math.floor(len(mnistmTrainSet) / (args.batch_size * 200)) + (i / 200))
                 print('[%d, %5d] loss: %.3f' %
                       (epoch + 1, i + 1, loss.item()))
                 log_value('loss', loss.item(), count)
                 z = torch.randn(args.batch_size, z_dim).to(device)
-                out = net.decode(z).view(-1, 1, 28, 28)
-                log_images('generated', out[0].detach(), count)
-
+                gen = net.decode(z).view(-1, 1, 28, 28)
+                log_images('generated', gen[0].detach(), count)
+                out, _, _ = net(input_batch)
+                out = out.view(args.batch_size, 1, 28, 28)
+                log_images('image', sample_batched['image'][0], count)
+                log_images('recon', out[0].detach(), count)
+                
         # save model
-        tio.save_model(epoch=epoch, model=net, optimizer=optimizer)
+        tio.save_model(epoch=epoch, model=net, optimizer=optimizer, path=run_name + '/ckpt')
         epoch = epoch + 1

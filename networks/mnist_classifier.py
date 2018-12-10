@@ -62,8 +62,6 @@ def train(args):
 
     net.to(device)
 
-    count = 0
-
     epoch = [0]
 
     # load prev model
@@ -85,7 +83,7 @@ def train(args):
 
             # print statistics
             if i % 50 == 0:
-                count = count + 1
+                count = int(epoch * math.floor(len(mnistmTrainSet) / (args.batch_size * 200)) + (i / 200))
                 print('[%d, %5d] loss: %.3f' %
                     (epoch + 1, i + 1, loss.item()))
                 log_value('loss', loss.item(), count)

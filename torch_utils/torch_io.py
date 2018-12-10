@@ -2,7 +2,7 @@ import torch
 import os
 
 def save_model(epoch, model,
-               optimizer, path='./ckpt'):
+               optimizer, path):
     torch.save({
             'epoch': epoch,
             'model_state_dict': model.state_dict(),
@@ -11,7 +11,7 @@ def save_model(epoch, model,
 
 
 def load_model(model, epoch,
-               optimizer, path='./ckpt'):
+               optimizer, path):
     if os.path.exists(path):
         checkpoint = torch.load(path)
         model.load_state_dict(checkpoint['model_state_dict'])
