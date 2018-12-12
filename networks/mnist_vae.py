@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from tensorboard_logger import configure, log_value, log_images
 import os
 import sys
 from torch_utils import dataset as ds

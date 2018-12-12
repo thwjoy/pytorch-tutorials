@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as f
 import torch.optim as optim
-from tensorboard_logger import configure, log_value, log_images
 import os
 import sys
 from torch_utils import dataset as ds
@@ -101,8 +100,6 @@ def train(args):
     run_name = "./runs/run-CondGAN_batch_" + str(args.batch_size) \
                     + "_epochs_" + str(args.epochs) + "_" + args.log_message
 
-    configure(run_name)
-
     gen = generator()
     desc = descrimanator()
 
@@ -188,12 +185,7 @@ def train(args):
                 print('Epoch [{}], Step [{}], desc_loss: {:.4f}, gen_loss: {:.4f}, D(x): {:.2f}, D(G(z)): {:.2f}' 
                     .format(epoch, i+1, desc_loss.item(), gen_loss.item(), 
                         real_desc.mean().item(), gen_desc.mean().item()))
-                log_value("Gen Loss", gen_loss.item(), count)
-                log_value("Desc Loss", desc_loss.item(), count)
-                log_value("D(x)", real_desc.mean().item(), count)
-                log_value("D(G(z))", gen_desc.mean().item(), count)
-                for i in range(input_batch.shape[0]):
-                    log_images("generated_" + str(sample_batched['labels'][i]), gen_imgs[i].detach(), count)
+
             
 
             # train generator

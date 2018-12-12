@@ -12,9 +12,9 @@ def main():
                         help='input batch size for training (default: 128)')
     parser.add_argument('--epochs', type=int, default=500,
                         help='number of epochs to train over (default: 50)')
-    parser.add_argument('--phase', required=True, default='train',
+    parser.add_argument('--phase', required=False, default='train',
                         help='Set the phase of the network (default: train)')
-    parser.add_argument('--dataset_list', required=True,
+    parser.add_argument('--dataset_list', required=False, default='mnist/training/list.txt'
                         help='Path to csv containing the dataset and labels')
     parser.add_argument('--network', required=True,
                         help='The network which want to run: gan, classifier')

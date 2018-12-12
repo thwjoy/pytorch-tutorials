@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as f
 import torch.optim as optim
-from tensorboard_logger import configure, log_value, log_images
 import os
 import sys
 from torch_utils import dataset as ds
@@ -86,11 +85,7 @@ def train(args):
                 count = int(epoch * math.floor(len(mnistmTrainSet) / (args.batch_size * 200)) + (i / 200))
                 print('[%d, %5d] loss: %.3f' %
                     (epoch + 1, i + 1, loss.item()))
-                log_value('loss', loss.item(), count)
-                _, ind = output.max(1)
-                name = 'pred_' + str(ind[0])
-                sample_image = sample_batched['image'][0]
-                log_images(name, sample_image, count)
+
 
         # save model
         tio.save_model(epoch=epoch, model=net, optimizer=optimizer)
