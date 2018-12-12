@@ -16,19 +16,23 @@ class generator(nn.Module):
     def __init__(self):
         super(generator, self).__init__()
         self.g_fc1 = nn.Linear(100, 256)
+        self.g_fc1a = nn.Linear(10, 256)
         self.g_norm_1 = torch.nn.BatchNorm2d(1)
         self.g_norm_64 = torch.nn.BatchNorm2d(64)
-        self.g_fc2 = nn.Linear(256, 28 * 28)
+        self.g_fc2 = nn.Linear(2 * 256, 28 * 28)
         self.dropout = nn.Dropout2d(p=0.2)
         self.g_c1 = nn.Conv2d(1, 64, 5, padding=2)
         self.g_c2 = nn.Conv2d(64, 64, 5, padding=2)
         self.g_c3 = nn.Conv2d(64, 64, 5, padding=2)
         self.g_c4 = nn.Conv2d(64, 1, 5, padding=2)
 
-    def forward(self, input):
+    def forward(self, input, one_hot):
         # input vector of length 100
         self.gen_imgs = f.leaky_relu(self.g_fc1(input))
         self.gen_imgs = self.g_norm_1(self.gen_imgs)
+
+        one_hot = f.leaky_relu(self.g_fc1a(one_hot))
+        self.gen_imgs = torch.cat((self.gen_imgs, one_hot), 3)
 
         self.gen_imgs = f.leaky_relu(self.g_fc2(self.gen_imgs))
         self.gen_imgs = self.g_norm_1(self.gen_imgs)
@@ -62,11 +66,12 @@ class descrimanator(nn.Module):
         self.d_norm_1 = torch.nn.BatchNorm2d(1)
         self.d_norm_64 = torch.nn.BatchNorm2d(64)
         self.dropout = nn.Dropout2d(p=0.2)
+        self.d_fc1a = nn.Linear(10, 512)
         self.d_fc1 = nn.Linear(28 * 28, 512)
-        self.d_fc2 = nn.Linear(512, 256)
+        self.d_fc2 = nn.Linear(2 * 512, 256)
         self.d_fc3 = nn.Linear(256, 1)
 
-    def forward(self, input):
+    def forward(self, input, one_hot):
         self.desc = self.dropout(f.leaky_relu(self.d_c1(input)))
 
         self.desc = self.dropout(f.leaky_relu(self.d_c2(self.desc)))
@@ -76,6 +81,9 @@ class descrimanator(nn.Module):
         self.desc = input.view(-1, 1, 1, 28 * 28)
 
         self.desc = f.leaky_relu(self.d_fc1(self.desc))
+        one_hot   = f.leaky_relu(self.d_fc1a(one_hot))
+
+        self.desc = torch.cat((self.desc, one_hot), 3)
 
         self.desc = f.leaky_relu(self.d_fc2(self.desc))
 
@@ -90,7 +98,7 @@ def normalize(tensor):
 
 def train(args):
     # tensorboard
-    run_name = "./runs/run-GAN_batch_" + str(args.batch_size) \
+    run_name = "./runs/run-CondGAN_batch_" + str(args.batch_size) \
                     + "_epochs_" + str(args.epochs) + "_" + args.log_message
 
     configure(run_name)
@@ -132,6 +140,11 @@ def train(args):
             input_batch = 2 * (input_batch - 0.5)
             input_batch = input_batch.to(device)
 
+            # one hot encoding
+            one_hot = torch.zeros(input_batch.shape[0], 1, 1, 10)
+            one_hot[torch.arange(input_batch.shape[0]), 0, 0, sample_batched['labels']] = 1
+            one_hot = one_hot.to(device)
+
             # Create the labels which are later used as input for the BCE loss
             # ones_labels = torch.ones(input_batch.shape[0], 1, 1, 1).to(device)
             real_labels = 0.99 * torch.ones(input_batch.shape[0], 1, 1, 1).to(device)
@@ -141,12 +154,12 @@ def train(args):
             #                      Train the discriminator                       #
             # ================================================================== #
 
-            real_desc = desc(input_batch)
+            real_desc = desc(input_batch, one_hot)
             desc_loss_real = criterion(real_desc, real_labels)
 
             noise = torch.randn(input_batch.shape[0], 1, 1, 100).to(device)
-            gen_imgs = gen(noise)
-            gen_desc = desc(gen_imgs)
+            gen_imgs = gen(noise, one_hot)
+            gen_desc = desc(gen_imgs, one_hot)
             desc_loss_fake = criterion(gen_desc, fake_labels)
             desc_loss = desc_loss_fake + desc_loss_real
 
@@ -160,8 +173,8 @@ def train(args):
             # ================================================================== #
 
             noise = torch.empty(input_batch.shape[0], 1, 1, 100).uniform_().to(device)
-            gen_imgs = gen(noise)
-            gen_desc = desc(gen_imgs)
+            gen_imgs = gen(noise, one_hot)
+            gen_desc = desc(gen_imgs, one_hot)
 
             gen_loss = criterion(gen_desc, real_labels)
 
@@ -180,7 +193,7 @@ def train(args):
                 log_value("D(x)", real_desc.mean().item(), count)
                 log_value("D(G(z))", gen_desc.mean().item(), count)
                 for i in range(input_batch.shape[0]):
-                    log_images("generated", gen_imgs[i].detach(), count)
+                    log_images("generated_" + str(sample_batched['labels'][i]), gen_imgs[i].detach(), count)
             
 
             # train generator

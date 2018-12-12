@@ -24,6 +24,8 @@ def main():
 
     if args.network == 'gan':
         networks.mnist_gan.train(args)
+    elif args.network == 'cgan':
+        networks.mnist_cgan.train(args)
     elif args.network == 'vae':
         networks.mnist_vae.train(args)
     elif args.network == 'classifier':
